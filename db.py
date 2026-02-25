@@ -3,6 +3,10 @@ import os
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncAttrs
 from sqlalchemy.orm import DeclarativeBase, MappedColumn, mapped_column
 from sqlalchemy import Integer, JSON
+
+import async_requests
+
+
 POSTGRES_USER = os.getenv("POSTGRES_USER", "swapi")
 POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "secret")
 POSTGRES_DB = os.getenv("POSTGRES_DB", "swapi")
@@ -20,8 +24,12 @@ class SwapiPeople(Base):
     __tablename__ = "swapi"
 
     id: MappedColumn[int] = mapped_column(Integer, primary_key=True)
-    json: MappedColumn[dict] = mapped_column(JSON)
 
+    for i in async_requests.LIST_OF_KEYS:
+        if i == ["_id"] or ["birth_year"]:
+            i: MappedColumn[int] = mapped_column(Integer)
+        i: MappedColumn[str] = mapped_column(String, nullable=True)
+        # json: MappedColumn[dict] = mapped_column(JSON)
 
 async def init_orm():
     async with engine.begin() as conn:
@@ -29,4 +37,4 @@ async def init_orm():
 
 
 async def close_orm():
-    await engine.despose()
+    await engine.dispose()

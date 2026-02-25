@@ -8,15 +8,20 @@ from itertools import batched
 from db import init_orm, close_orm, SwapiPeople, DbSession
 
 MAX_REQUEST = 5
+
+LIST_OF_KEYS = ["_id", "birth_year", "eye_color", "gender", "hair_color", "homeworld", "mass", "name", "skin_color"]
 async def get_people(person_id: int, session: aiohttp.ClientSession):
     http_response = await session.get(f"https://www.swapi.tech/api/people/{person_id}/")
     json_data = await http_response.json()
 
     clean_json = {}
-    list_of_keys = ["_id", "birth_year", "eye_color", "gender", "hair_color", "homeworld", "mass", "name", "skin_color"]
 
-    for key in list_of_keys:
+    for key in LIST_OF_KEYS:
         if key in json_data:
+            if key == ["homeworld"]:
+                json_key = http_response.json()
+                clean_json[key] = json_key["name"]
+
             clean_json[key] = json_data[key]
 
     return clean_json
@@ -34,7 +39,7 @@ async def insert_people_batch(people_list: list[dict]):
 async def main():
     await init_orm()
     async with aiohttp.ClientSession() as http_session:
-        for id_batch in batched(MAX_REQUEST):
+        for id_batch in batched(range(1, 101), MAX_REQUEST):
             coros = []
             for i in id_batch:
                 coro = get_people(i, http_session)
@@ -44,9 +49,11 @@ async def main():
             insert_people_batch_coro = insert_people_batch(response)
             insert_people_batch_task = asyncio.create_task(insert_people_batch_coro)
             print(response)
+
     all_tasks = asyncio.all_tasks()
     main_task = asyncio.current_task()
     all_tasks.remove(main_task)
+
     for task in all_tasks:
         await task
     await close_orm()
