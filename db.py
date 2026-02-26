@@ -2,10 +2,10 @@ import os
 
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncAttrs
 from sqlalchemy.orm import DeclarativeBase, MappedColumn, mapped_column
-from sqlalchemy import Integer, JSON
+from sqlalchemy import Integer, String, Float, JSON
 
 import async_requests
-
+from config import LIST_OF_KEYS
 
 POSTGRES_USER = os.getenv("POSTGRES_USER", "swapi")
 POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "secret")
@@ -24,12 +24,14 @@ class SwapiPeople(Base):
     __tablename__ = "swapi"
 
     id: MappedColumn[int] = mapped_column(Integer, primary_key=True)
-
-    for i in async_requests.LIST_OF_KEYS:
-        if i == ["_id"] or ["birth_year"]:
-            i: MappedColumn[int] = mapped_column(Integer)
-        i: MappedColumn[str] = mapped_column(String, nullable=True)
-        # json: MappedColumn[dict] = mapped_column(JSON)
+    birth_year: MappedColumn[int] = mapped_column(Integer)
+    eye_color: MappedColumn[str] = mapped_column(String)
+    gender: MappedColumn[str] = mapped_column(String)
+    hair_color: MappedColumn[str] = mapped_column(String)
+    homeworld: MappedColumn[str] = mapped_column(String)
+    mass: MappedColumn[float] = mapped_column(Float)
+    name: MappedColumn[str] = mapped_column(String)
+    skin_color: MappedColumn[str] = mapped_column(String)
 
 async def init_orm():
     async with engine.begin() as conn:
