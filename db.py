@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, Asyn
 from sqlalchemy.orm import DeclarativeBase, MappedColumn, mapped_column
 from sqlalchemy import Integer, String, Float, JSON
 
-import async_requests
+
 from config import LIST_OF_KEYS
 
 POSTGRES_USER = os.getenv("POSTGRES_USER", "swapi")
@@ -24,14 +24,18 @@ class SwapiPeople(Base):
     __tablename__ = "swapi"
 
     id: MappedColumn[int] = mapped_column(Integer, primary_key=True)
-    birth_year: MappedColumn[int] = mapped_column(Integer)
-    eye_color: MappedColumn[str] = mapped_column(String)
-    gender: MappedColumn[str] = mapped_column(String)
-    hair_color: MappedColumn[str] = mapped_column(String)
-    homeworld: MappedColumn[str] = mapped_column(String)
-    mass: MappedColumn[float] = mapped_column(Float)
-    name: MappedColumn[str] = mapped_column(String)
-    skin_color: MappedColumn[str] = mapped_column(String)
+    birth_year: MappedColumn[str] = mapped_column(String(30))
+    eye_color: MappedColumn[str] = mapped_column(String(30))
+    gender: MappedColumn[str] = mapped_column(String(30))
+    hair_color: MappedColumn[str] = mapped_column(String(30))
+    homeworld: MappedColumn[str] = mapped_column(String(255))
+    mass: MappedColumn[str] = mapped_column(String(50))
+    name: MappedColumn[str] = mapped_column(String(255))
+    skin_color: MappedColumn[str] = mapped_column(String(30))
+    films: MappedColumn[str] = mapped_column(String(1000), nullable=True)
+    species: MappedColumn[str] = mapped_column(String(1000), nullable=True)
+    vehicles: MappedColumn[str] = mapped_column(String(1000), nullable=True)
+    starships:MappedColumn[str] = mapped_column(String(1000), nullable=True)
 
 async def init_orm():
     async with engine.begin() as conn:

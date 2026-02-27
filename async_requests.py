@@ -13,49 +13,67 @@ from db import init_orm, close_orm, SwapiPeople, DbSession
 
 
 async def get_people(person_id: int, session: aiohttp.ClientSession):
-    http_response = await session.get(f"https://www.swapi.tech/api/people/{person_id}/")
-    json_data = await http_response.json()
+    async with session.get(f"https://www.swapi.tech/api/people/{person_id}/") as response:
+        if response.status != 200:
+            return None
+        data = await response.json()
+        result = data.get('result', {})
+        properties = result.get('properties', {})
 
-    clean_json = {}
+        clean_json = {}
 
-    for key in LIST_OF_KEYS:
-        # print(key)
-        if key in json_data:
-            for k, v in json_data.items():
-                if k.startswith("homeworld"):
-                    http_response = await session.get(f"https://www.swapi.tech/api/planets/\d+/")
-                    json_key = await http_response.json()
-                    clean_json[key] = json_key["name"]
-                if k in HAVE_URLS_LIST:
-                    responses = await get_urls_list(person_id, session)
-                    clean_json[key] = responses
-                clean_json[key] = json_data[key]
-    return clean_json
+        for key in LIST_OF_KEYS:
+            # print(key)
+            if key in properties:
+                if key == 'homeworld':
+                    clean_json[key] = await get_planet_name(properties[key], session)
+                elif key in HAVE_URLS_LIST:
+                    clean_json[key] = await get_names_from_urls(properties[key], session)
+                else:
+                    clean_json[key] = properties[key]
+        clean_json['id'] = person_id
+        return clean_json
 
 
-async def get_urls_list(person_id: int, session: aiohttp.ClientSession):
-    http_response = await session.get(f"https://www.swapi.tech/api/people/{person_id}/")
-    json_data = await http_response.json()
+async def get_names_from_urls(urls: list, session: aiohttp.ClientSession):
 
-    clean_names = ""
+    if not urls:
+        return ""
+    coros = [session.get(url) for url in urls]
+    responses = await asyncio.gather(*coros)
 
-    for url_name in HAVE_URLS_LIST:
-        if url_name in json_data:
-            coros = []
+    names = []
+    for response in responses:
+        if response.status == 200:
+            data = await response.json()
 
-            for el in json_data[url_name]:
-                ### json_data[url] - список ссылок (например, фильмов)
-                ### el - фильм из списка
-                coros.append(el)
-                responses = await asyncio.gather(*coros)
-                ### responses - список со словарями
+            if 'result' in data:
+                properties = data['result'].get('properties', {})
+                names.append(properties.get('name') or properties.get('title', ''))
+    return ", ".join(filter(None, names))
 
-                for dict_ in responses:
-                    if url_name == "films":
-                        clean_names = ", ".join(dict_["title"])
-                    else:
-                        clean_names = ", ".join(dict_["name"])
-    return clean_names
+
+async def get_planet_name(url: str, session: aiohttp.ClientSession):
+
+    if not url:
+        return ""
+
+    coro = session.get(url)
+    response = await coro
+
+    name = ""
+    if response.status == 200:
+        data = await response.json()
+        if 'result' in data:
+            properties = data['result'].get('properties', {})
+            name += properties.get('name')
+    return name
+
+
+async def get_total_count(session):
+    async with session.get("https://www.swapi.tech/api/people/") as response:
+        data = await response.json()
+        return data.get('count', 0)
 
 
 async def insert_people_batch(people_list: list[dict]):
@@ -72,7 +90,7 @@ async def insert_people_batch(people_list: list[dict]):
 async def main():
     await init_orm()
     async with aiohttp.ClientSession() as http_session:
-        for id_batch in batched(range(1, 101), MAX_REQUEST):
+        for id_batch in batched(get_total_count(http_session), MAX_REQUEST):
             coros = []
             for i in id_batch:
                 coro = get_people(i, http_session)
