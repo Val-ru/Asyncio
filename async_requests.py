@@ -90,7 +90,8 @@ async def insert_people_batch(people_list: list[dict]):
 async def main():
     await init_orm()
     async with aiohttp.ClientSession() as http_session:
-        for id_batch in batched(get_total_count(http_session), MAX_REQUEST):
+        total_count = await get_total_count(http_session)
+        for id_batch in batched(range(1, total_count + 1), MAX_REQUEST):
             coros = []
             for i in id_batch:
                 coro = get_people(i, http_session)
@@ -112,3 +113,21 @@ async def main():
 start = datetime.datetime.now()
 asyncio.run(main())
 print(datetime.datetime.now() - start)
+
+### Для продакшена ###
+async def safe_get(url, session, retries=3):
+    for attempt in range(retries):
+        try:
+            async with session.get(url) as response:
+                if response.status == 200:
+                    return await response.json()
+                elif response.status == 404:
+                    return None # персонаж не найден
+                else:
+                    # Логирование ошибки
+                    print(f'Error {response.status} for {url}, attempt {attempt+1}')
+                    await asyncio.sleep(1 * (attempt + 1)) # exponentional backoff
+        except aiohttp.ClientError as e:
+            print(f"Connection error for {url}: {e}")
+            await asyncio.sleep(1 * (attempt + 1))
+    return None
